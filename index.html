@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Okul Chat Uygulaması (Final Versiyon)</title>
+    
+    <style>
+        body { font-family: sans-serif; margin: 0; background-color: #f4f7f6; display: flex; justify-content: center; padding-top: 20px; }
+        #chat-container { width: 100%; max-width: 600px; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; display: flex; flex-direction: column; height: 90vh; }
+        
+        /* Auth Panel Stili */
+        #auth-panel { padding: 15px; border-bottom: 1px solid #ddd; background: #f8f8f8; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;}
+        #auth-panel input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        #auth-panel button { padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; color: white; }
+        #login-button { background-color: #007bff; }
+        #logout-button { background-color: #dc3545; }
+        
+        /* Yeni Admin Toplu Silme Butonu Stili */
+        #deleteAllBtn {
+            background-color: #dc3545; 
+            color: white;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        /* Mesaj Listesi Stili */
+        #mesaj-listesi { flex-grow: 1; padding: 20px; overflow-y: auto; list-style: none; margin: 0; }
+        #mesaj-listesi li { 
+            background: #e6e6e6; 
+            padding: 10px 15px; 
+            border-radius: 20px; 
+            margin-bottom: 10px; 
+            max-width: 80%; 
+            position: relative; /* Butonlar için konum referansı */
+            padding-bottom: 35px; /* Butonlara yer açmak için */
+        }
+        .mesaj-baslik { display: flex; justify-content: space-between; font-size: 0.8em; margin-bottom: 5px; }
+        .gonderen { font-weight: bold; color: #007bff; }
+        .zaman { color: #6c757d; }
+        
+        /* Form Stili */
+        #gonder-formu { 
+            display: none; 
+            padding: 15px; 
+            border-top: 1px solid #ddd; 
+            background: #fff; 
+            gap: 10px; 
+        }
+        #mesaj-input { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 20px; }
+        #gonder-formu button { padding: 10px 15px; background-color: #28a745; color: white; border: none; border-radius: 20px; cursor: pointer; }
+        
+        /* Buton Konumları */
+        .copy-btn, .edit-btn, .delete-btn {
+            position: absolute;
+            bottom: 5px; /* Mesajın en altına hizala */
+            padding: 4px 8px; 
+            font-size: 0.7em; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            opacity: 0.8;
+            border: none;
+        }
+
+        .copy-btn { 
+            left: 5px; 
+            background-color: #00bcd4; 
+            color: white; 
+        }
+        .edit-btn { 
+            left: 75px; /* Kopyala'nın yanına hizala */
+            background-color: #ffcc00; 
+            color: #333; 
+        }
+        .delete-btn { 
+            right: 5px; /* Sağ tarafa hizala */
+            background-color: #ffc107; 
+            color: #333; 
+        }
+        .admin-btn { 
+            background-color: #dc3545; 
+            color: white; 
+        }
+    </style>
+</head>
+<body>
+
+    <div id="chat-container">
+        
+        <div id="auth-panel">
+            <div id="kullanici-durumu">Oturum Açılmadı.</div>
+            <div>
+                <button id="deleteAllBtn" style="display: none;">🗑️ Tümünü Sil</button>
+
+                <input type="text" id="nickname-input" placeholder="Takma Ad">
+                <input type="password" id="sifre-input" placeholder="Şifre">
+                <button id="login-button">Giriş Yap</button>
+                <button id="logout-button" style="display: none;">Çıkış Yap</button>
+            </div>
+        </div>
+        
+        <ul id="mesaj-listesi">
+            </ul>
+        
+        <form id="gonder-formu">
+            <input type="text" id="mesaj-input" placeholder="Mesajınızı yazın..." required>
+            <button type="submit">Gönder</button>
+        </form>
+
+    </div>
+    
+    <script type="module">
+        // Firebase SDK modüllerini import edin.
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, deleteDoc, writeBatch, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+        // =========================================================
+        // ⚠️ KULLANICI LİSTESİ (SİZİN TARAFINIZDAN YÖNETİLİR)
+        // =========================================================
+        const KULLANICILAR = {
+            "admin_nick": { sifre: "okul123", rol: "admin", uid: "ADMIN_1" },
+            "ogrenci1": { sifre: "pass1", rol: "normal", uid: "NORMAL_2" },
+            "veli_nick": { sifre: "pass2", rol: "normal", uid: "NORMAL_3" }
+        };
+        // =========================================================
+
+
+        // Firebase Config Objesi (Kendi projenizden kopyalayın)
+        const firebaseConfig = {
+			apiKey: "AIzaSyB72tA-N4WySi0VTlycOhQBYZNezckVFsY",
+			authDomain: "schoolchat-1e33a.firebaseapp.com",
+			projectId: "schoolchat-1e33a",
+			storageBucket: "schoolchat-1e33a.firebasestorage.app",
+			messagingSenderId: "98084158412",
+			appId: "1:98084158412:web:b81bf7d3721b0e90097b69",
+			measurementId: "G-93FGNJS1FY"
+		};
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let activeUser = null; 
+        
+        // ZAMAN AŞIMI DEĞİŞKENLERİ
+        let isCooldownActive = false;
+        const COOLDOWN_SECONDS = 5; 
+
+        // HTML Elemanları Tanımlamaları
+        const mesajListesi = document.getElementById('mesaj-listesi');
+        const gonderFormu = document.getElementById('gonder-formu');
+        const mesajInput = document.getElementById('mesaj-input');
+        const submitButton = gonderFormu.querySelector('button[type="submit"]');
+
+        const loginButton = document.getElementById('login-button');
+        const logoutButton = document.getElementById('logout-button');
+        const nicknameInput = document.getElementById('nickname-input');
+        const sifreInput = document.getElementById('sifre-input');
+        const kullaniciDurumu = document.getElementById('kullanici-durumu');
+        const deleteAllBtn = document.getElementById('deleteAllBtn'); 
+
+
+        // =========================================================
+        // YETKİLENDİRME ve ARABİRİM YÖNETİMİ
+        // =========================================================
+
+        function updateUI() {
+            const isAdmin = activeUser && activeUser.rol === 'admin';
+
+            if (activeUser) {
+                kullaniciDurumu.textContent = `Hoş geldiniz, ${activeUser.nickname} (${activeUser.rol})`;
+                loginButton.style.display = 'none';
+                logoutButton.style.display = 'inline-block';
+                nicknameInput.style.display = 'none';
+                sifreInput.style.display = 'none';
+                gonderFormu.style.display = 'flex'; 
+                
+                deleteAllBtn.style.display = isAdmin ? 'inline-block' : 'none';
+
+            } else {
+                kullaniciDurumu.textContent = `Oturum Açılmadı (Sadece Okuma)`;
+                loginButton.style.display = 'inline-block';
+                logoutButton.style.display = 'none';
+                nicknameInput.style.display = 'inline-block'; 
+                sifreInput.style.display = 'inline-block'; 
+                gonderFormu.style.display = 'none';
+                deleteAllBtn.style.display = 'none'; 
+            }
+        }
+
+        // Giriş işlemi
+        loginButton.addEventListener('click', () => {
+            const nickname = nicknameInput.value.trim();
+            const sifre = sifreInput.value.trim();
+            
+            const user = KULLANICILAR[nickname];
+
+            if (user && user.sifre === sifre) {
+                activeUser = user;
+                activeUser.nickname = nickname; 
+                
+                updateUI();
+                nicknameInput.value = '';
+                sifreInput.value = '';
+                alert(`Giriş Başarılı: ${nickname}`);
+
+            } else {
+                alert("Hatalı Takma Ad veya Şifre.");
+                activeUser = null;
+            }
+        });
+
+        // Çıkış işlemi
+        logoutButton.addEventListener('click', () => {
+            activeUser = null;
+            updateUI();
+        });
+
+
+        // =========================================================
+        // MESAJ DÜZENLEME FONKSİYONU
+        // =========================================================
+
+        async function handleEdit(docId, currentContent) {
+            if (!activeUser) return;
+
+            const newContent = prompt("Mesajı düzenleyin:", currentContent);
+
+            if (newContent !== null && newContent.trim() !== "") {
+                const docRef = doc(db, "mesajlar", docId);
+                
+                try {
+                    await updateDoc(docRef, {
+                        icerik: newContent.trim(),
+                        duzenlemeTarihi: serverTimestamp() 
+                    });
+                } catch (e) {
+                    console.error("Mesaj düzenlenirken hata oluştu: ", e);
+                    alert("Mesaj güncellenemedi.");
+                }
+            }
+        }
+
+
+        // Adminin Tüm Mesajları Silme Fonksiyonu
+        async function deleteAllMessages() {
+            if (!activeUser || activeUser.rol !== 'admin') {
+                alert("Bu işlemi yapmak için yönetici yetkiniz yok.");
+                return;
+            }
+
+            if (!confirm("UYARI: Tüm mesajları silmek istediğinize emin misiniz? Bu işlem geri alınamaz.")) {
+                return;
+            }
+
+            const qAll = query(collection(db, "mesajlar"));
+            const snapshot = await getDocs(qAll); 
+            const batch = writeBatch(db); 
+
+            snapshot.docs.forEach((doc) => {
+                batch.delete(doc.ref);
+            });
+
+            try {
+                await batch.commit();
+                alert(`Başarıyla ${snapshot.docs.length} adet mesaj silindi!`);
+            } catch (e) {
+                console.error("Toplu silme hatası: ", e);
+                alert("Toplu silme işlemi sırasında bir hata oluştu. Konsolu kontrol edin.");
+            }
+        }
+        deleteAllBtn.addEventListener('click', deleteAllMessages);
+
+
+        // =========================================================
+        // MESAJ GÖNDERME İŞLEVİ (Cooldown ve Boşluk Kontrolü ile)
+        // =========================================================
+        gonderFormu.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            // Boşlukları silerek içeriği al
+            const icerik = mesajInput.value.trim();
+
+            if (!activeUser) return;
+            
+            // BOŞ MESAJ KONTROLÜ
+            if (icerik === "") {
+                alert("Boş mesaj gönderilemez.");
+                mesajInput.value = ''; 
+                return; 
+            }
+            
+            // ZAMAN AŞIMI KONTROLÜ
+            if (isCooldownActive) {
+                alert(`Lütfen ${COOLDOWN_SECONDS} saniye bekleyin.`);
+                return;
+            }
+            
+            // Başarılı gönderim için try/catch bloğu
+            try {
+                // ZAMAN AŞIMINI BAŞLAT
+                isCooldownActive = true;
+                submitButton.disabled = true; 
+                
+                let counter = COOLDOWN_SECONDS;
+                submitButton.textContent = `${counter}s`;
+
+                const interval = setInterval(() => {
+                    counter--;
+                    submitButton.textContent = `${counter}s`;
+                    if (counter <= 0) {
+                        clearInterval(interval);
+                        submitButton.textContent = 'Gönder';
+                        submitButton.disabled = false;
+                        isCooldownActive = false; // Soğuma süresini bitir
+                    }
+                }, 1000);
+
+                await addDoc(collection(db, "mesajlar"), {
+                    gonderen: activeUser.nickname,
+                    icerik: icerik,
+                    tarih: serverTimestamp(),
+                    kullaniciId: activeUser.uid 
+                });
+                mesajInput.value = '';
+                
+            } catch (e) {
+                // Hata olursa cooldown'u sıfırla
+                isCooldownActive = false; 
+                submitButton.textContent = 'Gönder';
+                submitButton.disabled = false;
+                console.error("Mesaj gönderilirken hata oluştu: ", e);
+            }
+        });
+
+
+        // =========================================================
+        // MESAJLARI GERÇEK ZAMANLI OKUMA VE BUTONLARIN YÖNETİMİ
+        // =========================================================
+
+        const q = query(collection(db, "mesajlar"), orderBy("tarih", "asc"));
+
+        onSnapshot(q, (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                
+                const docId = change.doc.id; 
+                
+                if (change.type === "added") {
+                    const data = change.doc.data();
+                    
+                    let zaman = data.tarih ? new Date(data.tarih.seconds * 1000).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : "Şimdi";
+
+                    const li = document.createElement('li');
+                    li.setAttribute('data-doc-id', docId); 
+                    
+                    li.innerHTML = `
+                        <div class="mesaj-baslik">
+                            <span class="gonderen">${data.gonderen}</span>
+                            <span class="zaman">${zaman}</span>
+                        </div>
+                        <p class="icerik">${data.icerik}</p>
+                    `;
+                    
+                    // 1. KOPYALA BUTONU (Her zaman gösterilir)
+                    const copyBtn = document.createElement('button');
+                    copyBtn.textContent = 'Kopyala';
+                    copyBtn.className = 'copy-btn';
+                    copyBtn.onclick = () => {
+                        navigator.clipboard.writeText(data.icerik)
+                            .then(() => {
+                                copyBtn.textContent = 'Kopyalandı!';
+                                setTimeout(() => { copyBtn.textContent = 'Kopyala'; }, 1000);
+                            })
+                            .catch(err => {
+                                console.error('Kopyalama başarısız oldu: ', err);
+                            });
+                    };
+                    li.appendChild(copyBtn);
+
+                    // 2. DÜZENLEME VE SİLME BUTONLARI (Giriş yapılmışsa gösterilir)
+                    if (activeUser) {
+                        const isAdmin = activeUser.rol === 'admin';
+                        const isOwner = data.kullaniciId === activeUser.uid;
+                        
+                        // Yetki: Admin ise VEYA mesajın sahibi ise
+                        const hasPermission = isAdmin || isOwner; 
+
+                        if (hasPermission) {
+                            // DÜZENLE BUTONU
+                            const editBtn = document.createElement('button');
+                            editBtn.textContent = 'Düzenle';
+                            editBtn.className = 'edit-btn';
+                            editBtn.onclick = () => {
+                                handleEdit(docId, data.icerik); 
+                            };
+                            li.appendChild(editBtn);
+
+                            // SİL BUTONU
+                            const deleteBtn = document.createElement('button');
+                            deleteBtn.textContent = isAdmin ? 'Admin Sil' : 'Sil';
+                            deleteBtn.className = isAdmin ? 'delete-btn admin-btn' : 'delete-btn';
+                            
+                            deleteBtn.onclick = () => {
+                                deleteDoc(doc(db, "mesajlar", docId));
+                            };
+                            li.appendChild(deleteBtn);
+                        }
+                    }
+
+                    mesajListesi.appendChild(li);
+                    mesajListesi.scrollTop = mesajListesi.scrollHeight;
+                }
+                
+                // Silme işlemi (Başka bir kullanıcı sildiğinde arayüzden kaldırma)
+                if (change.type === "removed") {
+                    const elementToRemove = document.querySelector(`li[data-doc-id="${docId}"]`);
+                    if (elementToRemove) {
+                        elementToRemove.remove();
+                    }
+                }
+                // Mesaj güncellendiğinde (düzenlendiğinde) listeyi yeniden çizmeye gerek kalmaz, 
+                // çünkü Firestore'un gerçek zamanlı dinleyicisi otomatik olarak güncel içeriği yansıtır.
+            });
+        });
+        
+        // Sayfa yüklendiğinde arayüzü başlat
+        updateUI();
+        
+    </script>
+
+</body>
+</html>
