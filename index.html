@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Okul Chat Uygulaması (Final Versiyon)</title>
+    <title>Okul Chat Uygulaması (Firestore Auth)</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
     
     <style>
         body { font-family: sans-serif; margin: 0; background-color: #f4f7f6; display: flex; justify-content: center; padding-top: 20px; }
@@ -16,7 +18,7 @@
         #login-button { background-color: #007bff; }
         #logout-button { background-color: #dc3545; }
         
-        /* Yeni Admin Toplu Silme Butonu Stili */
+        /* Admin Toplu Silme Butonu Stili */
         #deleteAllBtn {
             background-color: #dc3545; 
             color: white;
@@ -32,8 +34,8 @@
             border-radius: 20px; 
             margin-bottom: 10px; 
             max-width: 80%; 
-            position: relative; /* Butonlar için konum referansı */
-            padding-bottom: 35px; /* Butonlara yer açmak için */
+            position: relative; 
+            padding-bottom: 35px; 
         }
         .mesaj-baslik { display: flex; justify-content: space-between; font-size: 0.8em; margin-bottom: 5px; }
         .gonderen { font-weight: bold; color: #007bff; }
@@ -53,7 +55,7 @@
         /* Buton Konumları */
         .copy-btn, .edit-btn, .delete-btn {
             position: absolute;
-            bottom: 5px; /* Mesajın en altına hizala */
+            bottom: 5px; 
             padding: 4px 8px; 
             font-size: 0.7em; 
             border-radius: 10px; 
@@ -68,12 +70,12 @@
             color: white; 
         }
         .edit-btn { 
-            left: 75px; /* Kopyala'nın yanına hizala */
+            left: 75px; 
             background-color: #ffcc00; 
             color: #333; 
         }
         .delete-btn { 
-            right: 5px; /* Sağ tarafa hizala */
+            right: 5px; 
             background-color: #ffc107; 
             color: #333; 
         }
@@ -112,48 +114,12 @@
     <script type="module">
         // Firebase SDK modüllerini import edin.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, deleteDoc, writeBatch, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+        // Sorgu fonksiyonları (where, limit) eklendi
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, deleteDoc, writeBatch, getDocs, updateDoc, where, limit } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
         // =========================================================
-        // ⚠️ KULLANICI LİSTESİ (SİZİN TARAFINIZDAN YÖNETİLİR)
-        // =========================================================
-        const KULLANICILAR = {
-            "mcahandar": { sifre: "millaninsevgilisi", rol: "admin", uid: "ADMIN_1" },
-			"maysel": { "sifre": "123456", "rol": "admin", "uid": "ADMIN_1" },
-			"mgunel": { "sifre": "123456", "rol": "admin", "uid": "ADMIN_1" },
-			"iamin": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-			"tazer": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-			"thuseyn": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-			"hsubhan": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-			"erafail": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-			"knezrin": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-			"tzerife": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-			"yayxan": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-			"xamin": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-			"qfatime": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-			"vmahire": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-			"mnergiz": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-			"zohre": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-			"bhemdullah": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-			"qnicat": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-			"felgun": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-			"qzehra": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-			"vzehra": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-			"qmehriban": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-			"inilay": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-  			"omer": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-  			"nnihat": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-  			"efateh": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-  			"ntuncay": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-  			"eteymur": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-  			"aeli": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-  			"aahu": { "sifre": "123456", "rol": "normal", "uid": "NORMAL_2" },
-            "valideyn": { sifre: "valideyn1234", rol: "normal", uid: "NORMAL_3" }
-        };
-        // =========================================================
-
-
         // Firebase Config Objesi (Kendi projenizden kopyalayın)
+        // =========================================================
         const firebaseConfig = {
 			apiKey: "AIzaSyB72tA-N4WySi0VTlycOhQBYZNezckVFsY",
 			authDomain: "schoolchat-1e33a.firebaseapp.com",
@@ -215,25 +181,57 @@
             }
         }
 
-        // Giriş işlemi
-        loginButton.addEventListener('click', () => {
+        // GİRİŞ İŞLEMİ (SHA-256 ile Firestore'dan kontrol)
+        loginButton.addEventListener('click', async () => {
             const nickname = nicknameInput.value.trim();
             const sifre = sifreInput.value.trim();
+
+            if (nickname === "" || sifre === "") {
+                alert("Takma ad ve şifre alanları boş bırakılamaz.");
+                return;
+            }
             
-            const user = KULLANICILAR[nickname];
+            // 1. Girilen şifreyi SHA-256 ile hashele
+            // NOT: sha256 global scope'ta tanımlıdır
+            const girilenSifreHash = sha256(sifre);
+            
+            // 2. Kullanıcıyı Firestore'dan nickname'e göre çek
+            try {
+                const usersRef = collection(db, "kullanicilar");
+                const q = query(usersRef, where("nickname", "==", nickname), limit(1));
+                const snapshot = await getDocs(q);
 
-            if (user && user.sifre === sifre) {
-                activeUser = user;
-                activeUser.nickname = nickname; 
-                
-                updateUI();
-                nicknameInput.value = '';
-                sifreInput.value = '';
-                alert(`Giriş Başarılı: ${nickname}`);
+                if (snapshot.empty) {
+                    alert("Hatalı Takma Ad veya Şifre.");
+                    activeUser = null;
+                    return;
+                }
 
-            } else {
-                alert("Hatalı Takma Ad veya Şifre.");
-                activeUser = null;
+                const userData = snapshot.docs[0].data();
+
+                // 3. Hashleri karşılaştır
+                if (userData.sifreHash === girilenSifreHash) {
+                    // BAŞARILI GİRİŞ
+                    activeUser = {
+                        nickname: userData.nickname,
+                        rol: userData.rol,
+                        uid: userData.uid
+                    };
+
+                    updateUI();
+                    nicknameInput.value = '';
+                    sifreInput.value = '';
+                    alert(`Giriş Başarılı: ${activeUser.nickname}`);
+
+                } else {
+                    // Şifreler Eşleşmedi
+                    alert("Hatalı Takma Ad veya Şifre.");
+                    activeUser = null;
+                }
+
+            } catch (e) {
+                console.error("Giriş sırasında hata oluştu: ", e);
+                alert("Giriş işlemi sırasında bir sorun oluştu.");
             }
         });
 
@@ -304,7 +302,6 @@
         // =========================================================
         gonderFormu.addEventListener('submit', async (e) => {
             e.preventDefault();
-            // Boşlukları silerek içeriği al
             const icerik = mesajInput.value.trim();
 
             if (!activeUser) return;
@@ -322,7 +319,6 @@
                 return;
             }
             
-            // Başarılı gönderim için try/catch bloğu
             try {
                 // ZAMAN AŞIMINI BAŞLAT
                 isCooldownActive = true;
@@ -338,7 +334,7 @@
                         clearInterval(interval);
                         submitButton.textContent = 'Gönder';
                         submitButton.disabled = false;
-                        isCooldownActive = false; // Soğuma süresini bitir
+                        isCooldownActive = false;
                     }
                 }, 1000);
 
@@ -351,7 +347,6 @@
                 mesajInput.value = '';
                 
             } catch (e) {
-                // Hata olursa cooldown'u sıfırla
                 isCooldownActive = false; 
                 submitButton.textContent = 'Gönder';
                 submitButton.disabled = false;
@@ -387,7 +382,7 @@
                         <p class="icerik">${data.icerik}</p>
                     `;
                     
-                    // 1. KOPYALA BUTONU (Her zaman gösterilir)
+                    // 1. KOPYALA BUTONU 
                     const copyBtn = document.createElement('button');
                     copyBtn.textContent = 'Kopyala';
                     copyBtn.className = 'copy-btn';
@@ -408,7 +403,6 @@
                         const isAdmin = activeUser.rol === 'admin';
                         const isOwner = data.kullaniciId === activeUser.uid;
                         
-                        // Yetki: Admin ise VEYA mesajın sahibi ise
                         const hasPermission = isAdmin || isOwner; 
 
                         if (hasPermission) {
@@ -437,15 +431,13 @@
                     mesajListesi.scrollTop = mesajListesi.scrollHeight;
                 }
                 
-                // Silme işlemi (Başka bir kullanıcı sildiğinde arayüzden kaldırma)
+                // Silme işlemi
                 if (change.type === "removed") {
                     const elementToRemove = document.querySelector(`li[data-doc-id="${docId}"]`);
                     if (elementToRemove) {
                         elementToRemove.remove();
                     }
                 }
-                // Mesaj güncellendiğinde (düzenlendiğinde) listeyi yeniden çizmeye gerek kalmaz, 
-                // çünkü Firestore'un gerçek zamanlı dinleyicisi otomatik olarak güncel içeriği yansıtır.
             });
         });
         
@@ -455,5 +447,4 @@
     </script>
 
 </body>
-
 </html>
