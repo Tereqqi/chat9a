@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Okul Chat Uygulaması (Firestore Auth)</title>
+    <title>Okul Chat Uygulaması (Son Versiyon)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
     
@@ -121,14 +121,10 @@
         // Firebase Config Objesi (Kendi projenizden kopyalayın)
         // =========================================================
         const firebaseConfig = {
-			apiKey: "AIzaSyB72tA-N4WySi0VTlycOhQBYZNezckVFsY",
-			authDomain: "schoolchat-1e33a.firebaseapp.com",
-			projectId: "schoolchat-1e33a",
-			storageBucket: "schoolchat-1e33a.firebasestorage.app",
-			messagingSenderId: "98084158412",
-			appId: "1:98084158412:web:b81bf7d3721b0e90097b69",
-			measurementId: "G-93FGNJS1FY"
-		};
+          apiKey: "AIzaSy...", 
+          authDomain: "proje-id.firebaseapp.com", 
+          projectId: "proje-id", 
+        };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -191,8 +187,7 @@
                 return;
             }
             
-            // 1. Girilen şifreyi SHA-256 ile hashele
-            // NOT: sha256 global scope'ta tanımlıdır
+            // 1. Girilen şifreyi SHA-256 ile hashele (sha256 global scope'ta tanımlıdır)
             const girilenSifreHash = sha256(sifre);
             
             // 2. Kullanıcıyı Firestore'dan nickname'e göre çek
@@ -362,6 +357,7 @@
         const q = query(collection(db, "mesajlar"), orderBy("tarih", "asc"));
 
         onSnapshot(q, (snapshot) => {
+            
             snapshot.docChanges().forEach((change) => {
                 
                 const docId = change.doc.id; 
@@ -428,7 +424,7 @@
                     }
 
                     mesajListesi.appendChild(li);
-                    mesajListesi.scrollTop = mesajListesi.scrollHeight;
+                    
                 }
                 
                 // Silme işlemi
@@ -438,7 +434,19 @@
                         elementToRemove.remove();
                     }
                 }
+                
+                // Güncelleme işlemi (Düzenleme)
+                if (change.type === "modified") {
+                    const elementToModify = document.querySelector(`li[data-doc-id="${docId}"]`);
+                    if (elementToModify) {
+                        const data = change.doc.data();
+                        elementToModify.querySelector('.icerik').textContent = data.icerik;
+                    }
+                }
             });
+            
+            // Tüm değişiklikler işlendikten sonra scroll'u en alta çek
+            mesajListesi.scrollTop = mesajListesi.scrollHeight;
         });
         
         // Sayfa yüklendiğinde arayüzü başlat
