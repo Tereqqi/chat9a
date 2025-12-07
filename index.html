@@ -114,7 +114,6 @@
     <script type="module">
         // Firebase SDK modüllerini import edin.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        // Sorgu fonksiyonları (where, limit) eklendi
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, deleteDoc, writeBatch, getDocs, updateDoc, where, limit } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
         // =========================================================
@@ -168,7 +167,6 @@
                 sifreInput.style.display = 'none';
                 gonderFormu.style.display = 'flex'; 
                 
-                // Admin butonu sadece Admin giriş yaptıysa görünür.
                 deleteAllBtn.style.display = isAdmin ? 'inline-block' : 'none';
 
             } else {
@@ -192,10 +190,8 @@
                 return;
             }
             
-            // 1. Girilen şifreyi SHA-256 ile hashele (sha256 global scope'ta tanımlıdır)
             const girilenSifreHash = sha256(sifre);
             
-            // 2. Kullanıcıyı Firestore'dan nickname'e göre çek
             try {
                 const usersRef = collection(db, "kullanicilar");
                 const q = query(usersRef, where("nickname", "==", nickname), limit(1));
@@ -209,7 +205,7 @@
 
                 const userData = snapshot.docs[0].data();
 
-                // 3. Hashleri karşılaştır
+                // Hashleri karşılaştır
                 if (userData.sifreHash === girilenSifreHash) {
                     // BAŞARILI GİRİŞ
                     activeUser = {
@@ -217,6 +213,10 @@
                         rol: userData.rol,
                         uid: userData.uid
                     };
+                    
+                    // ⚠️ KRİTİK DÜZELTME: Mesaj listesini temizle ki, onSnapshot 
+                    // tüm mesajları yeniden ve doğru yetkilerle yükleyebilsin.
+                    mesajListesi.innerHTML = ''; 
 
                     updateUI();
                     nicknameInput.value = '';
@@ -239,6 +239,8 @@
         logoutButton.addEventListener('click', () => {
             activeUser = null;
             updateUI();
+            // Çıkışta da listeyi temizleyip butonsuz olarak yeniden yükleyebiliriz
+            mesajListesi.innerHTML = '';
         });
 
 
@@ -267,7 +269,7 @@
         }
 
 
-        // Adminin Tüm Mesajları Silme Fonksiyonu (Yalnızca butona basılınca çalışır)
+        // Adminin Tüm Mesajları Silme Fonksiyonu
         async function deleteAllMessages() {
             if (!activeUser || activeUser.rol !== 'admin') {
                 alert("Bu işlemi yapmak için yönetici yetkiniz yok.");
@@ -294,7 +296,6 @@
                 alert("Toplu silme işlemi sırasında bir hata oluştu. Konsolu kontrol edin.");
             }
         }
-        // FONKSİYON SADECE BURADA EVENT LISTENER İLE ÇAĞRILIR!
         deleteAllBtn.addEventListener('click', deleteAllMessages);
 
 
@@ -307,14 +308,12 @@
 
             if (!activeUser) return;
             
-            // BOŞ MESAJ KONTROLÜ
             if (icerik === "") {
                 alert("Boş mesaj gönderilemez.");
                 mesajInput.value = ''; 
                 return; 
             }
             
-            // ZAMAN AŞIMI KONTROLÜ
             if (isCooldownActive) {
                 alert(`Lütfen ${COOLDOWN_SECONDS} saniye bekleyin.`);
                 return;
@@ -358,19 +357,16 @@
 
         // =========================================================
         // MESAJLARI GERÇEK ZAMANLI OKUMA VE BUTONLARIN YÖNETİMİ
-        // (Tüm eski mesajlar artık yüklenir)
         // =========================================================
 
         const q = query(collection(db, "mesajlar"), orderBy("tarih", "asc"));
 
-        // onSnapshot tüm eski (mevcut) mesajları "added" türünde yükler
         onSnapshot(q, (snapshot) => {
             
             snapshot.docChanges().forEach((change) => {
                 
                 const docId = change.doc.id; 
                 
-                // Mesaj eklenmesi (yeni mesaj veya ilk yüklenen eski mesaj)
                 if (change.type === "added") {
                     const data = change.doc.data();
                     
@@ -400,7 +396,10 @@
                     };
                     li.appendChild(copyBtn);
 
-                    // 2. DÜZENLEME VE SİLME BUTONLARI (Giriş yapılmışsa gösterilir)
+                    // 2. DÜZENLEME VE SİLME BUTONLARI (Artık activeUser kontrolü bu blokta çalışır)
+                    // Mesajlar ilk yüklendiğinde activeUser null olabilir,
+                    // ancak giriş yapıldıktan sonra listeyi temizlediğimiz için 
+                    // bu blok tekrar tetiklenecek ve activeUser tanımlı olacaktır.
                     if (activeUser) {
                         const isAdmin = activeUser.rol === 'admin';
                         const isOwner = data.kullaniciId === activeUser.uid;
@@ -462,4 +461,3 @@
 
 </body>
 </html>
-
