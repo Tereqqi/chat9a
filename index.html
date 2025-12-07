@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Okul Chat Uygulaması (Son Versiyon)</title>
+    <title>Okul Chat Uygulaması (Nihai Versiyon)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
     
@@ -121,14 +121,10 @@
         // Firebase Config Objesi (Kendi projenizden kopyalayın)
         // =========================================================
         const firebaseConfig = {
-			apiKey: "AIzaSyB72tA-N4WySi0VTlycOhQBYZNezckVFsY",
-			authDomain: "schoolchat-1e33a.firebaseapp.com",
-			projectId: "schoolchat-1e33a",
-			storageBucket: "schoolchat-1e33a.firebasestorage.app",
-			messagingSenderId: "98084158412",
-			appId: "1:98084158412:web:b81bf7d3721b0e90097b69",
-			measurementId: "G-93FGNJS1FY"
-		};
+          apiKey: "AIzaSy...", 
+          authDomain: "proje-id.firebaseapp.com", 
+          projectId: "proje-id", 
+        };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -168,6 +164,7 @@
                 sifreInput.style.display = 'none';
                 gonderFormu.style.display = 'flex'; 
                 
+                // Admin butonu sadece Admin giriş yaptıysa görünür.
                 deleteAllBtn.style.display = isAdmin ? 'inline-block' : 'none';
 
             } else {
@@ -266,7 +263,7 @@
         }
 
 
-        // Adminin Tüm Mesajları Silme Fonksiyonu
+        // Adminin Tüm Mesajları Silme Fonksiyonu (Yalnızca butona basılınca çalışır)
         async function deleteAllMessages() {
             if (!activeUser || activeUser.rol !== 'admin') {
                 alert("Bu işlemi yapmak için yönetici yetkiniz yok.");
@@ -293,6 +290,7 @@
                 alert("Toplu silme işlemi sırasında bir hata oluştu. Konsolu kontrol edin.");
             }
         }
+        // FONKSİYON SADECE BURADA EVENT LISTENER İLE ÇAĞRILIR!
         deleteAllBtn.addEventListener('click', deleteAllMessages);
 
 
@@ -356,16 +354,19 @@
 
         // =========================================================
         // MESAJLARI GERÇEK ZAMANLI OKUMA VE BUTONLARIN YÖNETİMİ
+        // (Tüm eski mesajlar artık yüklenir)
         // =========================================================
 
         const q = query(collection(db, "mesajlar"), orderBy("tarih", "asc"));
 
+        // onSnapshot tüm eski (mevcut) mesajları "added" türünde yükler
         onSnapshot(q, (snapshot) => {
             
             snapshot.docChanges().forEach((change) => {
                 
                 const docId = change.doc.id; 
                 
+                // Mesaj eklenmesi (yeni mesaj veya ilk yüklenen eski mesaj)
                 if (change.type === "added") {
                     const data = change.doc.data();
                     
@@ -391,9 +392,6 @@
                             .then(() => {
                                 copyBtn.textContent = 'Kopyalandı!';
                                 setTimeout(() => { copyBtn.textContent = 'Kopyala'; }, 1000);
-                            })
-                            .catch(err => {
-                                console.error('Kopyalama başarısız oldu: ', err);
                             });
                     };
                     li.appendChild(copyBtn);
@@ -460,4 +458,3 @@
 
 </body>
 </html>
-
